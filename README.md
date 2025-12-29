@@ -42,6 +42,7 @@ Production-ready Node.js/Express + MongoDB starter with multi-tenant isolation (
 - `GET /orgs/:orgId/members` (ADMIN/AUTHOR/SUPER_ADMIN) → list members for the given org (requires membership unless super admin).
 - `GET /users` (ADMIN or SUPER_ADMIN) → list users for admin selection (supports optional `search` query).
 - `POST /conferences` (ADMIN or SUPER_ADMIN, requires `x-org-id`) → create conference in tenant.
+- `POST /conferences/:conferenceId/settings` (ADMIN or SUPER_ADMIN, requires `x-org-id`) → create or update conference settings (file rules, payments, AI, etc.).
 - `GET /conferences` (ADMIN/AUTHOR/SUPER_ADMIN) → list conferences in tenant.
 - `POST /tracks` (ADMIN or SUPER_ADMIN) → create track for a conference (tenant + conference scoped).
 - `GET /tracks?conferenceId=...` (ADMIN/AUTHOR/SUPER_ADMIN) → list tracks for the given conference in tenant.
