@@ -8,6 +8,7 @@ const profileRoutes = require('./profile.routes');
 const submissionRoutes = require('./submissions.routes');
 const adminSubmissionsRoutes = require('./adminSubmissions.routes');
 const paymentRoutes = require('./payment.routes');
+const userRoutes = require('./users.routes');
 const authenticate = require('../middleware/auth');
 const tenantResolver = require('../middleware/tenantResolver');
 
@@ -26,5 +27,6 @@ router.use('/tracks', trackRoutes);
 router.use('/profile', profileRoutes);
 router.use('/submissions', submissionRoutes);
 router.use('/admin/submissions', adminSubmissionsRoutes);
+router.use('/users', userRoutes);
 
 module.exports = router;
