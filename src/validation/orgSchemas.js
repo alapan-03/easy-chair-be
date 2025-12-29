@@ -1,4 +1,7 @@
 const { z } = require('zod');
+const Roles = require('../constants/roles');
+
+const objectId = z.string().regex(/^[a-fA-F0-9]{24}$/, 'Must be a valid ObjectId');
 
 const createOrgSchema = {
   body: z.object({
@@ -7,6 +10,17 @@ const createOrgSchema = {
   }),
 };
 
+const addOrgMemberSchema = {
+  params: z.object({
+    orgId: objectId,
+  }),
+  body: z.object({
+    userId: objectId,
+    role: z.enum([Roles.ADMIN, Roles.AUTHOR]),
+  }),
+};
+
 module.exports = {
   createOrgSchema,
+  addOrgMemberSchema,
 };
