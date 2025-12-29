@@ -6,6 +6,9 @@ const { SubmissionTimelineTypes } = require('../constants/submissionStatuses');
 
 const createPaymentIntent = async (orgId, submission, settings, actorUserId) => {
   const providerRef = randomUUID();
+  const requiresPayment = settings.payments.amountCents > 0;
+  const initialStatus = requiresPayment ? 'CREATED' : 'PAID';
+
   const intent = await paymentIntentRepository.create(orgId, {
     conferenceId: submission.conferenceId,
     submissionId: submission._id,
@@ -13,7 +16,7 @@ const createPaymentIntent = async (orgId, submission, settings, actorUserId) => 
     provider: 'stub',
     amountCents: settings.payments.amountCents,
     currency: settings.payments.currency,
-    status: 'CREATED',
+    status: initialStatus,
     providerRef,
   });
 
@@ -23,6 +26,15 @@ const createPaymentIntent = async (orgId, submission, settings, actorUserId) => 
     actorUserId: actorUserId,
     payload: { paymentIntentId: intent._id, amountCents: intent.amountCents, currency: intent.currency },
   });
+
+  if (!requiresPayment) {
+    await submissionTimelineRepository.create(orgId, {
+      submissionId: submission._id,
+      type: SubmissionTimelineTypes.PAYMENT_CONFIRMED,
+      actorUserId: actorUserId,
+      payload: { paymentIntentId: intent._id, providerRef },
+    });
+  }
 
   return intent;
 };
