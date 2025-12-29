@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const orgController = require('../controllers/orgController');
 const validate = require('../middleware/validation');
-const { createOrgSchema, addOrgMemberSchema } = require('../validation/orgSchemas');
+const { createOrgSchema, addOrgMemberSchema, getOrgMembersSchema } = require('../validation/orgSchemas');
 const { requireRole } = require('../middleware/rbac');
 const Roles = require('../constants/roles');
 
@@ -15,6 +15,12 @@ router.post(
   requireRole([Roles.ADMIN, Roles.SUPER_ADMIN], { requireOrg: false }),
   validate(addOrgMemberSchema),
   orgController.addOrgMember
+);
+router.get(
+  '/:orgId/members',
+  requireRole([Roles.ADMIN, Roles.AUTHOR, Roles.SUPER_ADMIN], { requireOrg: false }),
+  validate(getOrgMembersSchema),
+  orgController.getOrgMembers
 );
 
 module.exports = router;

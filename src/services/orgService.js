@@ -64,8 +64,27 @@ const listOrganizationsForUser = async (userId) => {
   return orgRepository.findByIds(orgIds);
 };
 
+const listOrganizationMembers = async (orgId) => {
+  const organization = await orgRepository.findById(orgId);
+  if (!organization) {
+    throw new ApiError(404, 'ORG_NOT_FOUND', 'Organization not found');
+  }
+
+  const members = await orgMemberRepository.findByOrgWithUsers(orgId);
+  return members.map((member) => ({
+    orgId: String(member.orgId),
+    userId: String(member.userId?._id || member.userId),
+    role: member.role,
+    status: member.status,
+    user: member.userId
+      ? { id: member.userId._id, name: member.userId.name, email: member.userId.email }
+      : undefined,
+  }));
+};
+
 module.exports = {
   createOrganization,
   addMemberToOrganization,
   listOrganizationsForUser,
+  listOrganizationMembers,
 };

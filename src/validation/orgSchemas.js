@@ -20,7 +20,14 @@ const addOrgMemberSchema = {
   }),
 };
 
+const getOrgMembersSchema = {
+  params: z.object({
+    orgId: objectId,
+  }),
+};
+
 module.exports = {
   createOrgSchema,
   addOrgMemberSchema,
+  getOrgMembersSchema,
 };

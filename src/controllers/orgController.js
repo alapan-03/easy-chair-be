@@ -37,8 +37,27 @@ const addOrgMember = async (req, res) => {
   res.status(status).json(result);
 };
 
+const getOrgMembers = async (req, res) => {
+  const { orgId } = req.params;
+  const tenantOrgId = req.tenant?.orgId;
+  const isSuperAdmin = (req.user.globalRoles || []).includes(Roles.SUPER_ADMIN);
+
+  if (!isSuperAdmin) {
+    if (!tenantOrgId) {
+      throw new ApiError(400, 'ORG_REQUIRED', 'x-org-id header is required for this operation');
+    }
+    if (String(tenantOrgId) !== String(orgId)) {
+      throw new ApiError(403, 'FORBIDDEN', 'Cannot view members for another organization');
+    }
+  }
+
+  const members = await orgService.listOrganizationMembers(orgId);
+  res.json({ data: members });
+};
+
 module.exports = {
   createOrganization,
   getMyOrganizations,
   addOrgMember,
+  getOrgMembers,
 };

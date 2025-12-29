@@ -17,9 +17,15 @@ const findByUser = async (userId) => OrgMember.find({ userId, isDeleted: false }
 const findByOrgAndUser = async (orgId, userId) =>
   OrgMember.findOne({ orgId, userId, isDeleted: false }).lean();
 
+const findByOrgWithUsers = async (orgId) =>
+  OrgMember.find({ orgId, isDeleted: false })
+    .populate('userId', 'name email status')
+    .lean();
+
 module.exports = {
   addMember,
   updateMember,
   findByUser,
   findByOrgAndUser,
+  findByOrgWithUsers,
 };
