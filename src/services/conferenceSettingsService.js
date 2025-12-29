@@ -5,14 +5,6 @@ const conferenceRepository = require('../repositories/conferenceRepository');
 const pickDefined = (obj = {}) =>
   Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined));
 
-const getSettingsOrThrow = async (orgId, conferenceId) => {
-  const settings = await conferenceSettingsRepository.findByConference(orgId, conferenceId);
-  if (!settings) {
-    throw new ApiError(404, 'CONFERENCE_SETTINGS_NOT_FOUND', 'Conference settings not configured for this conference');
-  }
-  return settings;
-};
-
 const upsertSettings = async (orgId, conferenceId, payload = {}) => {
   const conference = await conferenceRepository.findById(orgId, conferenceId);
   if (!conference) {
@@ -78,7 +70,27 @@ const upsertSettings = async (orgId, conferenceId, payload = {}) => {
   return { settings, created: true };
 };
 
+const getSettingsOrThrow = async (orgId, conferenceId) => {
+  const settings = await conferenceSettingsRepository.findByConference(orgId, conferenceId);
+  if (!settings) {
+    throw new ApiError(404, 'CONFERENCE_SETTINGS_NOT_FOUND', 'Conference settings not configured for this conference');
+  }
+  return settings;
+};
+
+const getOrCreateSettings = async (orgId, conferenceId) => {
+  const existing = await conferenceSettingsRepository.findByConference(orgId, conferenceId);
+  if (existing) {
+    return { settings: existing, created: false };
+  }
+
+  // Create with defaults defined in the schema
+  const created = await conferenceSettingsRepository.create(orgId, { conferenceId });
+  return { settings: created, created: true };
+};
+
 module.exports = {
   getSettingsOrThrow,
+  getOrCreateSettings,
   upsertSettings,
 };

@@ -97,7 +97,7 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
     throw new ApiError(400, 'INVALID_STATUS', 'Cannot upload file for this submission status');
   }
 
-  const settings = await conferenceSettingsService.getSettingsOrThrow(orgId, submission.conferenceId);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
   validateFileRules(settings, filePayload);
 
   const { storageKey } = await storageProvider.putObject({
@@ -133,7 +133,7 @@ const createPaymentIntent = async (orgId, submissionId, userId) => {
   }
   assertAuthor(submission, userId);
 
-  const settings = await conferenceSettingsService.getSettingsOrThrow(orgId, submission.conferenceId);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
 
   const intent = await paymentService.createPaymentIntent(orgId, submission, settings, userId);
 
@@ -173,7 +173,7 @@ const submit = async (orgId, submissionId, userId) => {
     throw new ApiError(400, 'INVALID_STATUS', 'Submission cannot be submitted in its current state');
   }
 
-  const settings = await conferenceSettingsService.getSettingsOrThrow(orgId, submission.conferenceId);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
   await ensurePaymentPaidIfRequired(orgId, submissionId, settings.payments.requiredBeforeSubmit);
 
   const updated = await submissionRepository.updateOne(
