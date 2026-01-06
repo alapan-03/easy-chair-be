@@ -1,4 +1,5 @@
 const OpenAIProvider = require('./OpenAIProvider');
+const GeminiAIProvider = require('./GeminiAIProvider');
 const logger = require('../../config/logger');
 
 /**
@@ -9,8 +10,16 @@ class AIProviderFactory {
     switch (providerName.toLowerCase()) {
       case 'openai':
         return new OpenAIProvider();
+
+      case 'gemini':
+      case 'google':
+        return new GeminiAIProvider();
+
       default:
-        logger.warn({ providerName }, 'Unknown AI provider, defaulting to OpenAI');
+        logger.warn(
+          { providerName },
+          'Unknown AI provider, defaulting to OpenAI'
+        );
         return new OpenAIProvider();
     }
   }

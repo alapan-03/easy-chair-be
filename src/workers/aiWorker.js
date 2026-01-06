@@ -1,23 +1,23 @@
-require('dotenv').config();
-require('express-async-errors');
+require("dotenv").config();
+require("express-async-errors");
 
-const { Worker } = require('bullmq');
-const pdfParse = require('pdf-parse');
-const { connection } = require('../services/queueService');
-const logger = require('../config/logger');
-const connectDB = require('../database/mongoose');
+const { Worker } = require("bullmq");
+const pdfParse = require("pdf-parse");
+const { connection } = require("../services/queueService");
+const logger = require("../config/logger");
+const connectDB = require("../database/mongoose");
 
 // Repositories
-const aiReportRepository = require('../repositories/aiReportRepository');
-const submissionRepository = require('../repositories/submissionRepository');
-const submissionFileRepository = require('../repositories/submissionFileRepository');
-const conferenceSettingsRepository = require('../repositories/conferenceSettingsRepository');
+const aiReportRepository = require("../repositories/aiReportRepository");
+const submissionRepository = require("../repositories/submissionRepository");
+const submissionFileRepository = require("../repositories/submissionFileRepository");
+const conferenceSettingsRepository = require("../repositories/conferenceSettingsRepository");
 
 // AI Providers
-const AIProviderFactory = require('../services/ai/AIProviderFactory');
+const AIProviderFactory = require("../services/ai/AIProviderFactory");
 
 // Storage Provider
-const StorageProvider = require('../services/storageProvider');
+const StorageProvider = require("../services/storageProvider");
 
 /**
  * Extract text from PDF buffer
@@ -29,16 +29,18 @@ async function extractTextFromPDF(pdfBuffer) {
     // Enforce size limit (50MB max)
     const maxSizeBytes = 50 * 1024 * 1024;
     if (pdfBuffer.length > maxSizeBytes) {
-      throw new Error(`PDF exceeds maximum size of ${maxSizeBytes / 1024 / 1024}MB`);
+      throw new Error(
+        `PDF exceeds maximum size of ${maxSizeBytes / 1024 / 1024}MB`
+      );
     }
 
     const data = await pdfParse(pdfBuffer, {
-      max: 0 // Parse all pages
+      max: 0, // Parse all pages
     });
 
     return data.text;
   } catch (error) {
-    logger.error({ error: error.message }, 'PDF text extraction failed');
+    logger.error({ error: error.message }, "PDF text extraction failed");
     throw error;
   }
 }
@@ -53,9 +55,13 @@ async function extractTextFromPDF(pdfBuffer) {
 async function fetchCorpus(orgId, conferenceId, excludeSubmissionId) {
   try {
     // Get all previous submissions in this conference
-    const submissions = await submissionRepository.findByConference(orgId, conferenceId, {
-      limit: 50 // Limit corpus size for performance
-    });
+    const submissions = await submissionRepository.findByConference(
+      orgId,
+      conferenceId,
+      {
+        limit: 50, // Limit corpus size for performance
+      }
+    );
 
     const corpus = [];
 
@@ -66,14 +72,19 @@ async function fetchCorpus(orgId, conferenceId, excludeSubmissionId) {
       }
 
       // Get the latest file for this submission
-      const files = await submissionFileRepository.findBySubmission(orgId, submission._id);
+      const files = await submissionFileRepository.findBySubmission(
+        orgId,
+        submission._id
+      );
       if (files.length === 0) continue;
 
       const latestFile = files[files.length - 1];
 
       // For now, we'll just use the abstract + title as a lightweight corpus
       // In production, you'd extract full text from stored PDFs
-      const text = `${submission.metadata?.title || ''}\n${submission.metadata?.abstract || ''}`;
+      const text = `${submission.metadata?.title || ""}\n${
+        submission.metadata?.abstract || ""
+      }`;
       if (text.trim().length > 100) {
         corpus.push(text);
       }
@@ -81,7 +92,10 @@ async function fetchCorpus(orgId, conferenceId, excludeSubmissionId) {
 
     return corpus;
   } catch (error) {
-    logger.error({ error: error.message, conferenceId }, 'Failed to fetch corpus');
+    logger.error(
+      { error: error.message, conferenceId },
+      "Failed to fetch corpus"
+    );
     return []; // Return empty corpus on error
   }
 }
@@ -90,134 +104,172 @@ async function fetchCorpus(orgId, conferenceId, excludeSubmissionId) {
  * Process AI analysis job
  */
 async function processAIAnalysis(job) {
-  const { 
-    orgId, 
-    conferenceId, 
-    submissionId, 
-    fileVersionId,
-    reportId
-  } = job.data;
+  const { orgId, conferenceId, submissionId, fileVersionId, reportId } =
+    job.data;
 
-  logger.info({ 
-    jobId: job.id, 
-    submissionId, 
-    fileVersionId 
-  }, 'Processing AI analysis job');
+  logger.info(
+    { jobId: job.id, submissionId, fileVersionId },
+    "Processing AI analysis job"
+  );
 
   try {
-    // Update report status to RUNNING
-    await aiReportRepository.updateStatus(reportId, 'RUNNING');
+    // 0. Mark report as RUNNING
+    await aiReportRepository.updateStatus(reportId, "RUNNING");
 
-    // 1. Load submission and file metadata
+    // 1. Load submission
     const submission = await submissionRepository.findById(orgId, submissionId);
     if (!submission) {
-      throw new Error('Submission not found');
+      throw new Error("Submission not found");
     }
 
+    // 2. Load file metadata
     const file = await submissionFileRepository.findById(orgId, fileVersionId);
     if (!file) {
-      throw new Error('File not found');
+      throw new Error("File not found");
     }
 
-    // 2. Download PDF from storage
-    logger.info({ storageKey: file.storageKey }, 'Downloading PDF from storage');
+    // 3. Download PDF
+    logger.info(
+      { storageKey: file.storageKey },
+      "Downloading PDF from storage"
+    );
     const pdfBuffer = await StorageProvider.getObject(file.storageKey);
 
-    // 3. Extract text from PDF
+    // 4. Extract text
     job.updateProgress(20);
-    logger.info('Extracting text from PDF');
+    logger.info("Extracting text from PDF");
     const extractedText = await extractTextFromPDF(pdfBuffer);
 
     if (!extractedText || extractedText.length < 100) {
-      throw new Error('Insufficient text extracted from PDF');
+      throw new Error("Insufficient text extracted from PDF");
     }
 
-    // 4. Load conference settings
-    const settings = await conferenceSettingsRepository.findByConference(orgId, conferenceId);
+    // 5. Load conference AI settings
+    const settings = await conferenceSettingsRepository.findByConference(
+      orgId,
+      conferenceId
+    );
+
     if (!settings) {
-      throw new Error('Conference settings not found');
+      throw new Error("Conference settings not found");
     }
 
     const aiConfig = settings.ai || {};
-    const providerName = aiConfig.providers?.summarization?.name || 'openai';
-    const similarityProviderName = aiConfig.providers?.similarity?.name || 'openai';
 
-    // 5. Get AI provider
-    const provider = AIProviderFactory.getProvider(providerName);
+    const summarizationProviderName =
+      aiConfig.providers?.summarization?.name || "openai";
 
-    // 6. Generate summary
+    const similarityProviderName =
+      aiConfig.providers?.similarity?.name || "openai";
+
+    // 6. Resolve providers
+    const summarizationProvider = AIProviderFactory.getProvider(
+      summarizationProviderName
+    );
+
+    const similarityProvider = AIProviderFactory.getProvider(
+      similarityProviderName
+    );
+
+    // 7. Generate summary
     job.updateProgress(40);
-    logger.info('Generating AI summary');
-    const summary = await provider.generateSummary(extractedText, {
-      model: aiConfig.providers?.summarization?.model
+    logger.info(
+      { provider: summarizationProviderName },
+      "Generating AI summary"
+    );
+
+    const summary = await summarizationProvider.generateSummary(extractedText, {
+      model: aiConfig.providers?.summarization?.model,
     });
 
-    // 7. Run format checks
+    // 8. Run format checks (provider-agnostic)
     job.updateProgress(60);
-    logger.info('Running format checks');
-    const formatCheck = await provider.runFormatChecks(extractedText, submission.metadata);
+    logger.info("Running format checks");
 
-    // 8. Compute similarity
+    const formatCheck = await summarizationProvider.runFormatChecks(
+      extractedText,
+      submission.metadata
+    );
+
+    // 9. Compute similarity
     job.updateProgress(80);
-    logger.info('Computing similarity');
-    const corpus = await fetchCorpus(orgId, conferenceId, submissionId);
-    const similarity = await provider.computeSimilarity(extractedText, corpus, {
-      thresholdPct: aiConfig.plagiarismThresholdPct || 20,
-      excludeReferences: aiConfig.excludeReferencesToggle !== false,
-      model: aiConfig.providers?.similarity?.model
-    });
+    logger.info({ provider: similarityProviderName }, "Computing similarity");
 
-    // 9. Update report with results
+    let corpus = await fetchCorpus(orgId, conferenceId, submissionId);
+
+    // Defensive limit to avoid token explosion
+    corpus = Array.isArray(corpus) ? corpus.slice(0, 10) : [];
+
+    const similarity = await similarityProvider.computeSimilarity(
+      extractedText,
+      corpus,
+      {
+        thresholdPct: aiConfig.plagiarismThresholdPct ?? 20,
+        excludeReferences: aiConfig.excludeReferencesToggle !== false,
+        model: aiConfig.providers?.similarity?.model,
+      }
+    );
+
+    // 10. Save report results
     job.updateProgress(95);
-    logger.info('Saving AI report results');
+    logger.info("Saving AI report results");
+
     await aiReportRepository.updateWithResults(reportId, {
       summary,
       formatCheck,
       similarity,
       providerMeta: {
-        provider: providerName,
-        model: aiConfig.providers?.summarization?.model
-      }
+        summarizationProvider: summarizationProviderName,
+        similarityProvider: similarityProviderName,
+        summarizationModel: aiConfig.providers?.summarization?.model,
+        similarityModel: aiConfig.providers?.similarity?.model,
+      },
     });
 
     job.updateProgress(100);
-    logger.info({ 
-      jobId: job.id, 
-      submissionId, 
-      reportId 
-    }, 'AI analysis job completed successfully');
+    logger.info(
+      { jobId: job.id, submissionId, reportId },
+      "AI analysis job completed successfully"
+    );
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       reportId,
-      summary: summary.text.substring(0, 200) + '...',
-      similarity: similarity.scorePct
+      summaryPreview: summary.text?.substring(0, 200) + "...",
+      similarityScore: similarity.scorePct,
     };
-
   } catch (error) {
-    logger.error({ 
-      error: error.message, 
-      stack: error.stack,
-      jobId: job.id, 
-      submissionId 
-    }, 'AI analysis job failed');
+    logger.error(
+      {
+        error: error.message,
+        stack: error.stack,
+        jobId: job.id,
+        submissionId,
+      },
+      "AI analysis job failed"
+    );
 
-    // Determine error code
-    let errorCode = 'PROCESSING_ERROR';
+    let errorCode = "PROCESSING_ERROR";
     let errorMessage = error.message;
 
-    if (error.message?.includes('API key') || error.message?.includes('Incorrect API key')) {
-      errorCode = 'API_KEY_INVALID';
-      errorMessage = 'OpenAI API key is invalid or missing. Please configure OPENAI_API_KEY.';
-    } else if (error.message?.includes('rate limit')) {
-      errorCode = 'RATE_LIMIT_EXCEEDED';
-      errorMessage = 'OpenAI API rate limit exceeded. Please try again later.';
-    } else if (error.message?.includes('quota')) {
-      errorCode = 'QUOTA_EXCEEDED';
-      errorMessage = 'OpenAI API quota exceeded. Please check your billing.';
+    const providerLabel = (
+      aiConfig?.providers?.summarization?.name || "AI"
+    ).toUpperCase();
+
+    if (
+      error.message?.includes("API key") ||
+      error.message?.includes("Incorrect API key")
+    ) {
+      errorCode = "API_KEY_INVALID";
+      errorMessage = `${providerLabel} API key is invalid or missing.`;
+    } else if (error.message?.toLowerCase().includes("rate limit")) {
+      errorCode = "RATE_LIMIT_EXCEEDED";
+      errorMessage = `${providerLabel} API rate limit exceeded. Please try again later.`;
+    } else if (error.message?.toLowerCase().includes("quota")) {
+      errorCode = "QUOTA_EXCEEDED";
+      errorMessage = `${providerLabel} API quota exceeded. Please check billing.`;
     }
 
-    // Mark report as failed
     await aiReportRepository.markFailed(reportId, errorCode, errorMessage);
 
     throw error;
@@ -231,47 +283,46 @@ async function startWorker() {
   try {
     // Connect to MongoDB
     await connectDB();
-    logger.info('Worker connected to MongoDB');
+    logger.info("Worker connected to MongoDB");
 
     // Create worker
-    const worker = new Worker('ai-analysis', processAIAnalysis, {
+    const worker = new Worker("ai-analysis", processAIAnalysis, {
       connection,
-      concurrency: parseInt(process.env.AI_WORKER_CONCURRENCY || '2', 10),
+      concurrency: parseInt(process.env.AI_WORKER_CONCURRENCY || "2", 10),
       limiter: {
         max: 10, // Max 10 jobs
-        duration: 60000 // per minute
-      }
+        duration: 60000, // per minute
+      },
     });
 
-    worker.on('completed', (job) => {
-      logger.info({ jobId: job.id }, 'Job completed');
+    worker.on("completed", (job) => {
+      logger.info({ jobId: job.id }, "Job completed");
     });
 
-    worker.on('failed', (job, err) => {
-      logger.error({ jobId: job?.id, error: err.message }, 'Job failed');
+    worker.on("failed", (job, err) => {
+      logger.error({ jobId: job?.id, error: err.message }, "Job failed");
     });
 
-    worker.on('error', (err) => {
-      logger.error({ error: err.message }, 'Worker error');
+    worker.on("error", (err) => {
+      logger.error({ error: err.message }, "Worker error");
     });
 
-    logger.info('AI worker started successfully');
+    logger.info("AI worker started successfully");
 
     // Graceful shutdown
-    process.on('SIGTERM', async () => {
-      logger.info('SIGTERM received, closing worker');
+    process.on("SIGTERM", async () => {
+      logger.info("SIGTERM received, closing worker");
       await worker.close();
       process.exit(0);
     });
 
-    process.on('SIGINT', async () => {
-      logger.info('SIGINT received, closing worker');
+    process.on("SIGINT", async () => {
+      logger.info("SIGINT received, closing worker");
       await worker.close();
       process.exit(0);
     });
-
   } catch (error) {
-    logger.error({ error: error.message }, 'Failed to start worker');
+    logger.error({ error: error.message }, "Failed to start worker");
     process.exit(1);
   }
 }
