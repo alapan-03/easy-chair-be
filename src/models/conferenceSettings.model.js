@@ -24,9 +24,20 @@ const aiSchema = new Schema(
   {
     enabled: { type: Boolean, default: true },
     visibility: { type: String, enum: ['admin_only', 'author_visible'], default: 'admin_only' },
-    runMode: { type: String, enum: ['both', 'plagiarism_only', 'assist_only'], default: 'both' },
+    runMode: { type: String, enum: ['both', 'auto_only', 'manual_only'], default: 'both' },
     plagiarismThresholdPct: { type: Number, default: 20 },
     excludeReferencesToggle: { type: Boolean, default: true },
+    consentRequired: { type: Boolean, default: true },
+    providers: {
+      summarization: {
+        name: { type: String, default: 'openai' },
+        model: { type: String, default: 'gpt-4' }
+      },
+      similarity: {
+        name: { type: String, default: 'openai' },
+        model: { type: String, default: 'text-embedding-3-small' }
+      }
+    }
   },
   { _id: false }
 );

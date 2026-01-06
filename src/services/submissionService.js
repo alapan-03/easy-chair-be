@@ -123,6 +123,45 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
     originalName: filePayload.originalName,
   });
 
+  // Auto-trigger AI analysis if enabled
+  try {
+    const aiService = require('./aiService');
+    const aiConfig = settings.ai || {};
+    
+    if (aiConfig.enabled && ['both', 'auto_only'].includes(aiConfig.runMode)) {
+      // Check if consent is required
+      const consentRequired = aiConfig.consentRequired !== false;
+      
+      if (consentRequired) {
+        const hasConsent = await aiService.hasConsent(submissionId, userId);
+        if (hasConsent) {
+          await aiService.triggerAnalysis(
+            orgId,
+            submission.conferenceId,
+            submissionId,
+            fileRecord._id,
+            'AUTO',
+            null
+          );
+        }
+      } else {
+        // No consent required, trigger immediately
+        await aiService.triggerAnalysis(
+          orgId,
+          submission.conferenceId,
+          submissionId,
+          fileRecord._id,
+          'AUTO',
+          null
+        );
+      }
+    }
+  } catch (aiError) {
+    // Log but don't fail the file upload
+    const logger = require('../config/logger');
+    logger.error({ error: aiError.message, submissionId }, 'Failed to auto-trigger AI analysis');
+  }
+
   return fileRecord;
 };
 

@@ -109,3 +109,60 @@ Implemented author workflows, payments stub, timelines, and admin decisions with
 
 ### Conference settings
 - Persist a `ConferenceSettings` document per conference (unique per `conferenceId`) to drive rules: submission file limits, admin final upload toggle, payment required, decision statuses, AI flags, certificates, email templates. Operations will fail with `CONFERENCE_SETTINGS_NOT_FOUND` if missing.
+
+## AI Analysis Module (step 3)
+Implemented queue-based AI analysis with consent management, plagiarism detection, and admin-only intelligence features.
+
+- **Models**: `ConsentRecord`, `AIReport` with multi-tenant indexes.
+- **Queue**: BullMQ + Redis for async AI job processing (separate worker process).
+- **Provider abstraction**: OpenAI implementation with pluggable interface for other providers.
+- **PDF pipeline**: Text extraction with safety guardrails (size/time limits).
+- **Analysis**: AI summary generation, format checks, similarity scoring against corpus.
+- **Auto-trigger**: File uploads automatically enqueue AI jobs when enabled and consent exists.
+- **Admin-only**: Authors never see AI reports; strict RBAC enforcement.
+
+### Prerequisites
+- Redis running (added to `docker-compose.yml`)
+- `OPENAI_API_KEY` env var set
+- Worker process running: `npm run worker`
+
+### Author AI endpoints
+- `POST /submissions/:id/ai-consent` capture consent  
+  Body: `{ "consentAI": true, "consentFineTune": false }`  
+  Response: `ConsentRecord` with IP/user agent captured.
+
+### Admin AI endpoints (ADMIN/SUPER_ADMIN only)
+- `POST /admin/submissions/:id/ai/run` manually trigger AI analysis  
+  Response: `{ report, jobId }` (job queued for processing).
+- `GET /admin/submissions/:id/ai` retrieve AI report for submission  
+  Response: `AIReport` with summary, formatCheck, similarity, provenance.
+- `GET /admin/ai/reports?conferenceId=&status=&flagged=` list AI reports with filters  
+  Response: `{ data: [...], total, limit, skip }`.
+- `GET /admin/ai/queue-stats` get BullMQ queue statistics  
+  Response: `{ waiting, active, completed, failed }`.
+
+### Conference AI settings
+Extended `ConferenceSettings.ai`:
+```json
+{
+  "enabled": true,
+  "visibility": "admin_only",
+  "runMode": "both|auto_only|manual_only",
+  "plagiarismThresholdPct": 20,
+  "excludeReferencesToggle": true,
+  "consentRequired": true,
+  "providers": {
+    "summarization": { "name": "openai", "model": "gpt-4" },
+    "similarity": { "name": "openai", "model": "text-embedding-3-small" }
+  }
+}
+```
+
+### AI workflow
+1. Author grants consent (`POST /submissions/:id/ai-consent`)
+2. Author uploads file (`POST /submissions/:id/files`) → auto-triggers AI if enabled
+3. Worker processes job: download PDF → extract text → summarize → format checks → similarity
+4. Admin views reports (`GET /admin/ai/reports`) and reviews flagged submissions
+
+**See [AI_ANALYSIS_GUIDE.md](AI_ANALYSIS_GUIDE.md) for complete documentation, frontend integration examples, and troubleshooting.**
+
