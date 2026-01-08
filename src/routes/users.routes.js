@@ -5,6 +5,15 @@ const userController = require('../controllers/userController');
 
 const router = Router();
 
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: List users
+ *     tags: [List Users]
+ *     responses:
+ *       200:
+ */
 router.get('/', validate(listUsersSchema), userController.listUsers);
 
 module.exports = router;

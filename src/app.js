@@ -2,6 +2,8 @@ require('express-async-errors');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec= require('./docs/swagger')
 
 const routes = require('./routes');
 const requestId = require('./middleware/requestId');
@@ -9,6 +11,7 @@ const errorHandler = require('./middleware/errorHandler');
 const logger = require('./config/logger');
 
 const app = express();
+app.use('/api/swagger/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(requestId);
 app.use(helmet());
