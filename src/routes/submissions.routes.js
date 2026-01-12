@@ -218,7 +218,7 @@ router.post(
  */
 router.get(
   "/",
-  // requireRole([Roles.AUTHOR, Roles.ADMIN, Roles.SUPER_ADMIN]),
+  requireRole([Roles.AUTHOR, Roles.ADMIN, Roles.SUPER_ADMIN]),
   submissionController.listMySubmissions
 );
 

@@ -5,6 +5,8 @@ const conferenceSchema = new Schema(
     orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, trim: true },
+    // Unique token for public signup link
+    accessToken: { type: String, required: true, unique: true, index: true },
     status: { type: String, enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'], default: 'ACTIVE' },
     startDate: { type: Date },
     endDate: { type: Date },
@@ -16,3 +18,4 @@ const conferenceSchema = new Schema(
 conferenceSchema.index({ orgId: 1, slug: 1 }, { unique: true });
 
 module.exports = model('Conference', conferenceSchema);
+

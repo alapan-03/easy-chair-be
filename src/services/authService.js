@@ -1,10 +1,12 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const Roles = require('../constants/roles');
+const { Roles } = require('../constants/roles');
 const { ApiError } = require('../utils/errors');
 const userRepository = require('../repositories/userRepository');
 const orgMemberRepository = require('../repositories/orgMemberRepository');
+const conferenceMemberRepository = require('../repositories/conferenceMemberRepository');
+const trackMemberRepository = require('../repositories/trackMemberRepository');
 
 const buildToken = (payload) => jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
@@ -40,11 +42,28 @@ const login = async ({ email, password, name, orgId }) => {
     }
   }
 
+  // Get conference-level memberships
+  const conferenceMemberships = await conferenceMemberRepository.findByUser(user._id);
+
+  // Get track-level memberships
+  const trackMemberships = await trackMemberRepository.findByUser(user._id);
+
   const payload = {
     sub: String(user._id),
     email: user.email,
     orgId,
     orgRoles: memberships.map((m) => ({ orgId: String(m.orgId), role: m.role })),
+    conferenceRoles: conferenceMemberships.map((m) => ({
+      conferenceId: String(m.conferenceId?._id || m.conferenceId),
+      orgId: String(m.orgId),
+      role: m.role,
+      managesFullConference: m.managesFullConference || false,
+    })),
+    trackRoles: trackMemberships.map((m) => ({
+      trackId: String(m.trackId?._id || m.trackId),
+      conferenceId: String(m.conferenceId),
+      role: m.role,
+    })),
     globalRoles,
   };
 
