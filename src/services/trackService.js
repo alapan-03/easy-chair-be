@@ -3,7 +3,7 @@ const conferenceRepository = require('../repositories/conferenceRepository');
 const trackRepository = require('../repositories/trackRepository');
 
 const createTrack = async (orgId, payload) => {
-  const conference = await conferenceRepository.findById(orgId, payload.conferenceId);
+  const conference = await conferenceRepository.findByIdWithTenant(orgId, payload.conferenceId);
   if (!conference) {
     throw new ApiError(404, 'CONFERENCE_NOT_FOUND', 'Conference not found for this org');
   }

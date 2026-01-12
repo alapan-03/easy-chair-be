@@ -467,7 +467,154 @@ x-org-id: <orgId>
 
 ---
 
-## Conference Management APIs
+## User Creation APIs (Top-Down Flow)
+
+Higher roles create accounts for lower roles with credentials.
+
+### Create Admin (SUPER_ADMIN only)
+
+```http
+POST /admin/users/create-admin
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "securepassword",
+  "name": "Organization Admin",
+  "orgId": "organization_object_id"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Admin user created successfully",
+  "user": {
+    "id": "user_id",
+    "email": "admin@example.com",
+    "name": "Organization Admin"
+  },
+  "role": "ADMIN",
+  "assignment": {
+    "orgId": "org_id"
+  }
+}
+```
+
+---
+
+### Create Manager (ADMIN or SUPER_ADMIN)
+
+```http
+POST /admin/users/create-manager
+Authorization: Bearer <token>
+x-org-id: <orgId>
+Content-Type: application/json
+
+{
+  "email": "manager@example.com",
+  "password": "securepassword",
+  "name": "Conference Manager",
+  "conferenceId": "conference_object_id"  // Optional, assigns to conference
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Manager user created successfully",
+  "user": {
+    "id": "user_id",
+    "email": "manager@example.com",
+    "name": "Conference Manager"
+  },
+  "role": "MANAGER",
+  "assignment": {
+    "orgId": "org_id",
+    "conferenceId": "conf_id"
+  }
+}
+```
+
+---
+
+### Create Sub-manager (MANAGER, ADMIN, or SUPER_ADMIN)
+
+```http
+POST /admin/users/create-submanager
+Authorization: Bearer <token>
+x-org-id: <orgId>
+Content-Type: application/json
+
+{
+  "email": "submanager@example.com",
+  "password": "securepassword",
+  "name": "Track Sub-manager",
+  "conferenceId": "conference_object_id",  // OR trackId
+  "trackId": "track_object_id",            // Optional, for track-level assignment
+  "managesFullConference": false           // Optional, if conferenceId without trackId
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Sub-manager user created successfully",
+  "user": {
+    "id": "user_id",
+    "email": "submanager@example.com",
+    "name": "Track Sub-manager"
+  },
+  "role": "SUB_MANAGER",
+  "assignment": {
+    "orgId": "org_id",
+    "conferenceId": "conf_id",
+    "trackId": "track_id"
+  }
+}
+```
+
+---
+
+### Generic User Creation (Flexible)
+
+```http
+POST /admin/users/create
+Authorization: Bearer <token>
+x-org-id: <orgId>
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securepassword",
+  "name": "User Name",
+  "role": "ADMIN" | "MANAGER" | "SUB_MANAGER",
+  "orgId": "org_id",           // Required for ADMIN/MANAGER
+  "conferenceId": "conf_id",   // Required for SUB_MANAGER
+  "trackId": "track_id"        // Optional for SUB_MANAGER
+}
+```
+
+---
+
+## Creation Flow Summary
+
+```
+SUPER_ADMIN  →  creates ADMIN     →  POST /admin/users/create-admin
+                                       (assigns to organization)
+
+ADMIN        →  creates MANAGER   →  POST /admin/users/create-manager
+                                       (assigns to org + optional conference)
+
+MANAGER      →  creates SUB_MANAGER → POST /admin/users/create-submanager
+                                       (assigns to conference or track)
+
+AUTHOR       →  self-signup       →  POST /conference/join/:accessToken
+                                       (via public conference link)
+```
+
+---
 
 ### Create Conference (ADMIN/SUPER_ADMIN)
 

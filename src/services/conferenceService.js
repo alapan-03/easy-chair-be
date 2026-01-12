@@ -3,6 +3,8 @@ const { ApiError } = require('../utils/errors');
 const conferenceRepository = require('../repositories/conferenceRepository');
 const slugify = require('../utils/slugify');
 
+const generateAccessToken = () => crypto.randomBytes(32).toString('hex');
+
 const createConference = async (orgId, payload) => {
   const slug = payload.slug ? payload.slug.toLowerCase() : slugify(payload.name);
   const existing = await conferenceRepository.findOne(orgId, { slug });
@@ -11,7 +13,7 @@ const createConference = async (orgId, payload) => {
   }
 
   // Generate unique access token for public signup link
-  const accessToken = crypto.randomBytes(32).toString('hex');
+  const accessToken = generateAccessToken();
 
   const conference = await conferenceRepository.create(orgId, {
     name: payload.name,
@@ -28,7 +30,30 @@ const createConference = async (orgId, payload) => {
   };
 };
 
-const listConferences = async (orgId) => conferenceRepository.find(orgId);
+const listConferences = async (orgId) => {
+  const conferences = await conferenceRepository.find(orgId);
+
+  // Enrich each conference with accessLink and generate token if missing
+  const enrichedConferences = await Promise.all(
+    conferences.map(async (conf) => {
+      const confObj = conf.toObject ? conf.toObject() : conf;
+
+      // Generate accessToken for legacy conferences that don't have one
+      if (!confObj.accessToken) {
+        const newToken = generateAccessToken();
+        await conferenceRepository.updateById(conf._id, { accessToken: newToken });
+        confObj.accessToken = newToken;
+      }
+
+      return {
+        ...confObj,
+        accessLink: `/conference/join/${confObj.accessToken}`,
+      };
+    })
+  );
+
+  return enrichedConferences;
+};
 
 const getConferenceByAccessToken = async (accessToken) => {
   const conference = await conferenceRepository.findByAccessToken(accessToken);
@@ -52,3 +77,4 @@ module.exports = {
   getConferenceByAccessToken,
   getConferenceById,
 };
+

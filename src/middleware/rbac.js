@@ -4,8 +4,8 @@ const conferenceMemberRepository = require('../repositories/conferenceMemberRepo
 const trackMemberRepository = require('../repositories/trackMemberRepository');
 
 /**
- * Basic role check middleware (org-level only)
- * For conference/track level checks, use requireConferenceRole or requireTrackRole
+ * Basic role check middleware
+ * Checks roles at all levels: org, conference, and track
  */
 const requireRole = (allowedRoles = [], options = {}) => (req, res, next) => {
   const { orgId } = req.tenant || {};
@@ -29,10 +29,25 @@ const requireRole = (allowedRoles = [], options = {}) => (req, res, next) => {
     return next(new ApiError(400, 'ORG_REQUIRED', 'orgId is required on x-org-id header'));
   }
 
-  const tenantRole = (user.orgRoles || []).find((membership) => String(membership.orgId) === String(orgId))
-    ?.role;
+  // Check org-level role
+  const orgRole = (user.orgRoles || []).find((m) => String(m.orgId) === String(orgId))?.role;
+  if (orgRole && allowedRoles.includes(orgRole)) {
+    return next();
+  }
 
-  if (tenantRole && allowedRoles.includes(tenantRole)) {
+  // Check conference-level roles for this org
+  const conferenceRole = (user.conferenceRoles || []).find(
+    (m) => String(m.orgId) === String(orgId) && allowedRoles.includes(m.role)
+  )?.role;
+  if (conferenceRole) {
+    return next();
+  }
+
+  // Check track-level roles for this org
+  const trackRole = (user.trackRoles || []).find(
+    (m) => String(m.orgId) === String(orgId) && allowedRoles.includes(m.role)
+  )?.role;
+  if (trackRole) {
     return next();
   }
 

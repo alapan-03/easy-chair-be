@@ -25,6 +25,8 @@ const authenticate = (required = true) => (req, res, next) => {
       email: payload.email,
       orgId: payload.orgId,
       orgRoles: payload.orgRoles || [],
+      conferenceRoles: payload.conferenceRoles || [],
+      trackRoles: payload.trackRoles || [],
       globalRoles: payload.globalRoles || [],
     };
     return next();

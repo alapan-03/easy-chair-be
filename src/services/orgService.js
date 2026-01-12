@@ -1,6 +1,8 @@
 const { ApiError } = require('../utils/errors');
 const orgRepository = require('../repositories/organizationRepository');
 const orgMemberRepository = require('../repositories/orgMemberRepository');
+const conferenceMemberRepository = require('../repositories/conferenceMemberRepository');
+const trackMemberRepository = require('../repositories/trackMemberRepository');
 const userRepository = require('../repositories/userRepository');
 const Roles = require('../constants/roles');
 const slugify = require('../utils/slugify');
@@ -55,12 +57,37 @@ const addMemberToOrganization = async (orgId, { userId, role }) => {
   return { member, created: true };
 };
 
+/**
+ * List organizations where user has ANY role:
+ * - Direct org membership (ADMIN, MANAGER)
+ * - Conference membership (MANAGER, SUB_MANAGER, AUTHOR)
+ * - Track membership (SUB_MANAGER)
+ */
 const listOrganizationsForUser = async (userId) => {
-  const memberships = await orgMemberRepository.findByUser(userId);
-  const orgIds = memberships.map((m) => m.orgId);
+  // Get org IDs from all membership types
+  const orgIdSet = new Set();
+
+  // 1. Direct org memberships
+  const orgMemberships = await orgMemberRepository.findByUser(userId);
+  orgMemberships.forEach((m) => orgIdSet.add(String(m.orgId)));
+
+  // 2. Conference memberships (have orgId field)
+  const conferenceMemberships = await conferenceMemberRepository.findByUser(userId);
+  conferenceMemberships.forEach((m) => {
+    if (m.orgId) orgIdSet.add(String(m.orgId));
+  });
+
+  // 3. Track memberships (have orgId field)
+  const trackMemberships = await trackMemberRepository.findByUser(userId);
+  trackMemberships.forEach((m) => {
+    if (m.orgId) orgIdSet.add(String(m.orgId));
+  });
+
+  const orgIds = Array.from(orgIdSet);
   if (orgIds.length === 0) {
     return [];
   }
+
   return orgRepository.findByIds(orgIds);
 };
 
@@ -88,3 +115,4 @@ module.exports = {
   listOrganizationsForUser,
   listOrganizationMembers,
 };
+

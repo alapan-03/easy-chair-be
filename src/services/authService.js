@@ -62,6 +62,7 @@ const login = async ({ email, password, name, orgId }) => {
     trackRoles: trackMemberships.map((m) => ({
       trackId: String(m.trackId?._id || m.trackId),
       conferenceId: String(m.conferenceId),
+      orgId: String(m.orgId),
       role: m.role,
     })),
     globalRoles,
@@ -77,6 +78,8 @@ const login = async ({ email, password, name, orgId }) => {
       name: user.name,
       roles: globalRoles,
       orgRoles: payload.orgRoles,
+      conferenceRoles: payload.conferenceRoles,
+      trackRoles: payload.trackRoles,
     },
   };
 };

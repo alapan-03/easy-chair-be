@@ -16,7 +16,9 @@ const addOrgMemberSchema = {
   }),
   body: z.object({
     userId: objectId,
-    role: z.enum([Roles.ADMIN, Roles.AUTHOR]),
+    // At org level, only ADMIN and MANAGER can be assigned
+    // AUTHOR is conference-level only (via access link)
+    role: z.enum([Roles.ADMIN, Roles.MANAGER]),
   }),
 };
 
