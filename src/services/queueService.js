@@ -1,71 +1,87 @@
-const { Queue } = require('bullmq');
-const Redis = require('ioredis');
-const config = require('../config');
 const logger = require('../config/logger');
 
-// Redis connection
-const connection = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  maxRetriesPerRequest: null
-});
+let Queue, Redis, connection, aiAnalysisQueue;
+let isRedisEnabled = false;
 
-connection.on('error', (err) => {
-  logger.error({ err }, 'Redis connection error');
-});
+// Try to initialize Redis if REDIS_HOST is configured
+if (process.env.REDIS_HOST) {
+  try {
+    const { Queue: BullQueue } = require('bullmq');
+    const IORedis = require('ioredis');
+    Queue = BullQueue;
+    Redis = IORedis;
 
-connection.on('connect', () => {
-  logger.info('Redis connected for BullMQ');
-});
+    connection = new Redis({
+      host: process.env.REDIS_HOST,
+      port: process.env.REDIS_PORT || 6379,
+      maxRetriesPerRequest: null
+    });
 
-// AI Analysis Queue
-const aiAnalysisQueue = new Queue('ai-analysis', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
-    },
-    removeOnComplete: {
-      count: 100,
-      age: 86400 // 24 hours
-    },
-    removeOnFail: {
-      count: 500,
-      age: 604800 // 7 days
-    }
+    connection.on('error', (err) => {
+      logger.error({ err }, 'Redis connection error');
+    });
+
+    connection.on('connect', () => {
+      logger.info('Redis connected for BullMQ');
+      isRedisEnabled = true;
+    });
+
+    // AI Analysis Queue
+    aiAnalysisQueue = new Queue('ai-analysis', {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000
+        },
+        removeOnComplete: {
+          count: 100,
+          age: 86400 // 24 hours
+        },
+        removeOnFail: {
+          count: 500,
+          age: 604800 // 7 days
+        }
+      }
+    });
+
+    isRedisEnabled = true;
+    logger.info('BullMQ queue initialized');
+  } catch (error) {
+    logger.warn({ err: error.message }, 'Redis/BullMQ not available - AI analysis queue disabled');
+    isRedisEnabled = false;
   }
-});
+} else {
+  logger.info('Redis not configured (REDIS_HOST not set) - AI analysis queue disabled');
+}
 
 /**
  * Enqueue an AI analysis job
- * @param {Object} jobData
- * @param {string} jobData.orgId
- * @param {string} jobData.conferenceId
- * @param {string} jobData.submissionId
- * @param {string} jobData.fileVersionId
- * @param {string} jobData.runMode - 'AUTO' or 'MANUAL'
- * @param {string} jobData.triggeredByUserId - null for AUTO
- * @param {string} jobData.reportId - AIReport document ID
+ * Returns null if Redis is not available
  */
 async function enqueueAIAnalysis(jobData) {
+  if (!isRedisEnabled || !aiAnalysisQueue) {
+    logger.warn({ submissionId: jobData?.submissionId }, 'AI analysis skipped - Redis not available');
+    return null;
+  }
+
   try {
     const job = await aiAnalysisQueue.add('analyze-submission', jobData, {
       jobId: `ai-${jobData.submissionId}-${jobData.fileVersionId}`,
-      priority: jobData.runMode === 'MANUAL' ? 1 : 10 // Manual jobs get higher priority
+      priority: jobData.runMode === 'MANUAL' ? 1 : 10
     });
 
-    logger.info({ 
-      jobId: job.id, 
-      submissionId: jobData.submissionId 
+    logger.info({
+      jobId: job.id,
+      submissionId: jobData.submissionId
     }, 'AI analysis job enqueued');
 
     return job;
   } catch (error) {
-    logger.error({ 
-      error: error.message, 
-      jobData 
+    logger.error({
+      error: error.message,
+      jobData
     }, 'Failed to enqueue AI analysis job');
     throw error;
   }
@@ -75,6 +91,10 @@ async function enqueueAIAnalysis(jobData) {
  * Get queue statistics
  */
 async function getQueueStats() {
+  if (!isRedisEnabled || !aiAnalysisQueue) {
+    return { waiting: 0, active: 0, completed: 0, failed: 0, disabled: true };
+  }
+
   try {
     const [waiting, active, completed, failed] = await Promise.all([
       aiAnalysisQueue.getWaitingCount(),
@@ -83,12 +103,7 @@ async function getQueueStats() {
       aiAnalysisQueue.getFailedCount()
     ]);
 
-    return {
-      waiting,
-      active,
-      completed,
-      failed
-    };
+    return { waiting, active, completed, failed };
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to get queue stats');
     throw error;
@@ -99,6 +114,10 @@ async function getQueueStats() {
  * Get job status by ID
  */
 async function getJobStatus(jobId) {
+  if (!isRedisEnabled || !aiAnalysisQueue) {
+    return null;
+  }
+
   try {
     const job = await aiAnalysisQueue.getJob(jobId);
     if (!job) {
@@ -120,10 +139,18 @@ async function getJobStatus(jobId) {
   }
 }
 
+/**
+ * Check if Redis/BullMQ is enabled
+ */
+function isQueueEnabled() {
+  return isRedisEnabled;
+}
+
 module.exports = {
   aiAnalysisQueue,
   enqueueAIAnalysis,
   getQueueStats,
   getJobStatus,
+  isQueueEnabled,
   connection
 };

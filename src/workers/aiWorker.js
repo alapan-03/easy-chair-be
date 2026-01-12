@@ -1,11 +1,20 @@
 require("dotenv").config();
 require("express-async-errors");
 
-const { Worker } = require("bullmq");
-const pdfParse = require("pdf-parse");
-const { connection } = require("../services/queueService");
 const logger = require("../config/logger");
 const connectDB = require("../database/mongoose");
+
+// Check if Redis/BullMQ is available
+const { isQueueEnabled, connection } = require("../services/queueService");
+
+if (!isQueueEnabled()) {
+  logger.info("AI Worker not started - Redis/BullMQ not configured");
+  process.exit(0);
+}
+
+// Only load BullMQ if Redis is enabled
+const { Worker } = require("bullmq");
+const pdfParse = require("pdf-parse");
 
 // Repositories
 const aiReportRepository = require("../repositories/aiReportRepository");
@@ -82,9 +91,8 @@ async function fetchCorpus(orgId, conferenceId, excludeSubmissionId) {
 
       // For now, we'll just use the abstract + title as a lightweight corpus
       // In production, you'd extract full text from stored PDFs
-      const text = `${submission.metadata?.title || ""}\n${
-        submission.metadata?.abstract || ""
-      }`;
+      const text = `${submission.metadata?.title || ""}\n${submission.metadata?.abstract || ""
+        }`;
       if (text.trim().length > 100) {
         corpus.push(text);
       }
@@ -111,6 +119,8 @@ async function processAIAnalysis(job) {
     { jobId: job.id, submissionId, fileVersionId },
     "Processing AI analysis job"
   );
+
+  let aiConfig = {};
 
   try {
     // 0. Mark report as RUNNING
@@ -154,7 +164,7 @@ async function processAIAnalysis(job) {
       throw new Error("Conference settings not found");
     }
 
-    const aiConfig = settings.ai || {};
+    aiConfig = settings.ai || {};
 
     const summarizationProviderName =
       aiConfig.providers?.summarization?.name || "openai";
