@@ -6,8 +6,8 @@ const pickDefined = (obj = {}) =>
   Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined));
 
 const upsertSettings = async (orgId, conferenceId, payload = {}) => {
-  const conference = await conferenceRepository.findById(orgId, conferenceId);
-  if (!conference) {
+  const conference = await conferenceRepository.findById(conferenceId);
+  if (!conference || String(conference.orgId) !== String(orgId)) {
     throw new ApiError(404, 'CONFERENCE_NOT_FOUND', 'Conference not found for this org');
   }
 

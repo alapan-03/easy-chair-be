@@ -20,12 +20,12 @@ const createTimeline = async (orgId, submissionId, type, actorUserId, payload = 
   submissionTimelineRepository.create(orgId, { submissionId, type, actorUserId, payload });
 
 const ensureConferenceAndTrack = async (orgId, conferenceId, trackId) => {
-  const conference = await conferenceRepository.findById(orgId, conferenceId);
-  if (!conference) {
+  const conference = await conferenceRepository.findById(conferenceId);
+  if (!conference || String(conference.orgId) !== String(orgId)) {
     throw new ApiError(404, 'CONFERENCE_NOT_FOUND', 'Conference not found for this org');
   }
 
-  const track = await trackRepository.findById(orgId, trackId);
+  const track = await trackRepository.findById(trackId);
   if (!track || String(track.conferenceId) !== String(conferenceId)) {
     throw new ApiError(404, 'TRACK_NOT_FOUND', 'Track not found for this conference');
   }
@@ -127,11 +127,11 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
   try {
     const aiService = require('./aiService');
     const aiConfig = settings.ai || {};
-    
+
     if (aiConfig.enabled && ['both', 'auto_only'].includes(aiConfig.runMode)) {
       // Check if consent is required
       const consentRequired = aiConfig.consentRequired !== false;
-      
+
       if (consentRequired) {
         const hasConsent = await aiService.hasConsent(submissionId, userId);
         if (hasConsent) {

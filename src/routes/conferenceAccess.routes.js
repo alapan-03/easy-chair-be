@@ -133,6 +133,7 @@ router.post('/join/:accessToken', async (req, res, next) => {
                 id: conference._id,
                 name: conference.name,
                 slug: conference.slug,
+                orgId: conference.orgId,
             },
             isNewUser,
         });
