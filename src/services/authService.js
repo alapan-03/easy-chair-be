@@ -7,6 +7,7 @@ const userRepository = require('../repositories/userRepository');
 const orgMemberRepository = require('../repositories/orgMemberRepository');
 const conferenceMemberRepository = require('../repositories/conferenceMemberRepository');
 const trackMemberRepository = require('../repositories/trackMemberRepository');
+const googleAuthService = require('./googleAuthService');
 
 const buildToken = (payload) => jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
@@ -84,6 +85,96 @@ const login = async ({ email, password, name, orgId }) => {
   };
 };
 
+/**
+ * Google OAuth login
+ * Verifies Google ID token and creates/finds user
+ */
+const googleLogin = async ({ idToken, orgId }) => {
+  // Verify the Google ID token
+  const googleUser = await googleAuthService.verifyIdToken(idToken);
+
+  // Find or create user
+  let user = await userRepository.findByEmail(googleUser.email);
+
+  if (!user) {
+    // Create new user with Google auth
+    user = await userRepository.createUser({
+      email: googleUser.email,
+      name: googleUser.name,
+      authProvider: 'google',
+      providerId: googleUser.googleId,
+      profilePicture: googleUser.picture,
+      status: 'ACTIVE',
+    });
+  } else if (user.authProvider === 'local' && !user.providerId) {
+    // Link existing local account with Google
+    await userRepository.updateUser(user._id, {
+      authProvider: 'google',
+      providerId: googleUser.googleId,
+      profilePicture: googleUser.picture,
+    });
+    user.authProvider = 'google';
+    user.providerId = googleUser.googleId;
+    user.profilePicture = googleUser.picture;
+  }
+
+  // Get memberships
+  const memberships = await orgMemberRepository.findByUser(user._id);
+  const globalRoles = config.superAdminEmails.includes(googleUser.email) ? [Roles.SUPER_ADMIN] : [];
+
+  if (orgId) {
+    const hasMembership = memberships.some((m) => String(m.orgId) === String(orgId));
+    const isSuperAdmin = globalRoles.includes(Roles.SUPER_ADMIN);
+    if (!hasMembership && !isSuperAdmin) {
+      throw new ApiError(403, 'FORBIDDEN', 'User is not a member of this organization');
+    }
+  }
+
+  // Get conference-level memberships
+  const conferenceMemberships = await conferenceMemberRepository.findByUser(user._id);
+
+  // Get track-level memberships
+  const trackMemberships = await trackMemberRepository.findByUser(user._id);
+
+  const payload = {
+    sub: String(user._id),
+    email: user.email,
+    orgId,
+    orgRoles: memberships.map((m) => ({ orgId: String(m.orgId), role: m.role })),
+    conferenceRoles: conferenceMemberships.map((m) => ({
+      conferenceId: String(m.conferenceId?._id || m.conferenceId),
+      orgId: String(m.orgId),
+      role: m.role,
+      managesFullConference: m.managesFullConference || false,
+    })),
+    trackRoles: trackMemberships.map((m) => ({
+      trackId: String(m.trackId?._id || m.trackId),
+      conferenceId: String(m.conferenceId),
+      orgId: String(m.orgId),
+      role: m.role,
+    })),
+    globalRoles,
+  };
+
+  const token = buildToken(payload);
+
+  return {
+    token,
+    user: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      profilePicture: user.profilePicture,
+      roles: globalRoles,
+      orgRoles: payload.orgRoles,
+      conferenceRoles: payload.conferenceRoles,
+      trackRoles: payload.trackRoles,
+    },
+  };
+};
+
 module.exports = {
   login,
+  googleLogin,
 };
+

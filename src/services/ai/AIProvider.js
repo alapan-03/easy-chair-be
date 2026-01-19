@@ -1,5 +1,4 @@
-const config = require('../config');
-const logger = require('../config/logger');
+const logger = require('../../config/logger');
 
 /**
  * Base interface for AI providers

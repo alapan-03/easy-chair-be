@@ -22,5 +22,9 @@ module.exports = {
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+  },
   superAdminEmails: parseList(process.env.SUPER_ADMIN_EMAILS),
 };
+

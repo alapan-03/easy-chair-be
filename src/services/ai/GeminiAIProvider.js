@@ -1,6 +1,6 @@
 const AIProvider = require('./AIProvider');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const logger = require('../config/logger');
+const logger = require('../../config/logger');
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -14,7 +14,7 @@ class GeminiAIProvider extends AIProvider {
 
     this.genAI = new GoogleGenerativeAI(API_KEY);
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-pro',
     });
   }
 
@@ -50,7 +50,7 @@ ${text}
         text: summaryText,
         wordCount,
         providerMeta: {
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-pro',
         },
       };
     } catch (error) {

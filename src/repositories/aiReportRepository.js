@@ -23,6 +23,14 @@ class AIReportRepository extends TenantRepository {
     }).sort({ createdAt: -1 });
   }
 
+  async findById(orgId, reportId) {
+    return this.model.findOne({
+      _id: reportId,
+      orgId,
+      isDeleted: false
+    });
+  }
+
   async createReport(data) {
     const {
       orgId,

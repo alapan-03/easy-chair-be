@@ -24,7 +24,7 @@ const adminFinalUploadSchema = {
   body: z.object({
     originalName: z.string().min(1),
     mimeType: z.string().min(1),
-    sizeBytes: z.number().int().positive(),
+    sizeBytes: z.coerce.number().int().positive(),
     checksum: z.string().optional(),
   }),
 };

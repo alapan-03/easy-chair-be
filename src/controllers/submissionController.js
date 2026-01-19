@@ -14,7 +14,25 @@ const updateSubmission = async (req, res) => {
 
 const uploadSubmissionFile = async (req, res) => {
   const { orgId } = req.tenant;
-  const file = await submissionService.uploadFile(orgId, req.params.id, req.user.userId, req.body);
+
+  // req.file comes from multer middleware
+  if (!req.file) {
+    return res.status(400).json({
+      code: 'FILE_REQUIRED',
+      message: 'No file uploaded. Please upload a PDF file.'
+    });
+  }
+
+  const filePayload = {
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
+    sizeBytes: req.file.size,
+    // The file is already saved to disk by multer, we just need the path
+    storagePath: req.file.path,
+    storageFilename: req.file.filename,
+  };
+
+  const file = await submissionService.uploadFile(orgId, req.params.id, req.user.userId, filePayload);
   res.status(201).json(file);
 };
 

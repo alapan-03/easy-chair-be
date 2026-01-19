@@ -40,9 +40,9 @@ class AIController {
 
     const submission = await submissionRepository.findById(orgId, submissionId);
     if (!submission) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         code: 'SUBMISSION_NOT_FOUND',
-        message: 'Submission not found' 
+        message: 'Submission not found'
       });
     }
 
@@ -66,16 +66,23 @@ class AIController {
       userId
     );
 
-    logger.info({ 
-      submissionId, 
+    if (!result) {
+      return res.status(400).json({
+        code: 'AI_ANALYSIS_SKIPPED',
+        message: 'AI analysis was skipped based on conference settings'
+      });
+    }
+
+    logger.info({
+      submissionId,
       triggeredBy: userId,
-      reportId: result.report._id 
+      reportId: result.report._id
     }, 'Admin triggered AI analysis');
 
     res.json({
-      message: 'AI analysis triggered',
+      message: result.error ? 'AI analysis failed' : 'AI analysis completed',
       report: result.report,
-      jobId: result.jobId
+      error: result.error || undefined
     });
   }
 

@@ -4,6 +4,7 @@ const Roles = require("../constants/roles");
 const submissionController = require("../controllers/submissionController");
 const aiController = require("../controllers/aiController");
 const validate = require("../middleware/validation");
+const upload = require("../middleware/upload");
 const {
   createSubmissionSchema,
   updateSubmissionSchema,
@@ -87,7 +88,7 @@ router.patch(
  * @swagger
  * /submissions/{id}/files:
  *   post:
- *     summary: Upload a file for a submission
+ *     summary: Upload a PDF file for a submission
  *     tags: [Submissions]
  *     security:
  *       - BearerAuth: []
@@ -100,9 +101,13 @@ router.patch(
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/UploadSubmissionFileRequest'
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: File uploaded successfully
@@ -110,7 +115,7 @@ router.patch(
 router.post(
   "/:id/files",
   requireRole([Roles.AUTHOR, Roles.ADMIN, Roles.SUPER_ADMIN]),
-  validate(uploadFileSchema),
+  upload.single('file'),
   submissionController.uploadSubmissionFile
 );
 

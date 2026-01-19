@@ -7,6 +7,7 @@ const userSchema = new Schema(
     authProvider: { type: String, default: 'local' },
     providerId: { type: String },
     passwordHash: { type: String },
+    profilePicture: { type: String },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
     isDeleted: { type: Boolean, default: false },
   },

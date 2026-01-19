@@ -44,7 +44,7 @@ const {
 router.post(
   "/submissions/:id/ai/run",
   requireRole(["ADMIN", "SUPER_ADMIN"]),
-  validate({ body: triggerAIAnalysisSchema }),
+  validate(triggerAIAnalysisSchema),
   aiController.triggerAnalysis
 );
 

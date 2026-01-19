@@ -9,6 +9,14 @@ const loginSchema = {
   }),
 };
 
+const googleLoginSchema = {
+  body: z.object({
+    idToken: z.string().min(1, 'Google ID token is required'),
+    orgId: z.string().regex(/^[a-fA-F0-9]{24}$/, 'orgId must be a valid ObjectId').optional(),
+  }),
+};
+
 module.exports = {
   loginSchema,
+  googleLoginSchema,
 };

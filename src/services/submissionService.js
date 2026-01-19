@@ -100,11 +100,11 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
   const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
   validateFileRules(settings, filePayload);
 
-  const { storageKey } = await storageProvider.putObject({
-    orgId,
-    submissionId,
-    originalName: filePayload.originalName,
-  });
+  // File is already saved by multer middleware, construct the storage key from the path
+  // The storagePath is the full path, we need to convert it to a relative storage key
+  const path = require('path');
+  const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'uploads');
+  const storageKey = path.relative(STORAGE_DIR, filePayload.storagePath).replace(/\\/g, '/');
 
   const fileRecord = await submissionFileRepository.create(orgId, {
     submissionId,
