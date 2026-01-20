@@ -13,6 +13,7 @@ const adminSubmissionsRoutes = require('./adminSubmissions.routes');
 const adminAIRoutes = require('./adminAI.routes');
 const paymentRoutes = require('./payment.routes');
 const userRoutes = require('./users.routes');
+const certificateTemplateRoutes = require('./certificateTemplate.routes');
 const userCreationRoutes = require('./userCreation.routes');
 const authenticate = require('../middleware/auth');
 const tenantResolver = require('../middleware/tenantResolver');
@@ -40,6 +41,7 @@ router.use('/admin/submissions', adminSubmissionsRoutes);
 router.use('/admin', adminAIRoutes);
 router.use('/admin/users', userCreationRoutes); // User creation by higher roles
 router.use('/users', userRoutes);
+router.use('/certificate-templates', certificateTemplateRoutes);
 
 module.exports = router;
 

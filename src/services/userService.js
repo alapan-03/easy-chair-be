@@ -1,9 +1,12 @@
-const userRepository = require('../repositories/userRepository');
+const {
+  getUsersConferences,
+} = require("../repositories/conferenceMemberRepository");
+const userRepository = require("../repositories/userRepository");
 
 const listUsers = async ({ search } = {}) => {
   const filter = {};
   if (search) {
-    const regex = new RegExp(search, 'i');
+    const regex = new RegExp(search, "i");
     filter.$or = [{ name: regex }, { email: regex }];
   }
 
@@ -16,6 +19,19 @@ const listUsers = async ({ search } = {}) => {
   }));
 };
 
+const getAllUsersConferences = async ({ search, userId }) => {
+  const filter = {};
+  if (search) {
+    const regex = new RegExp(search, "i");
+    filter.$or = [{ name: regex }, { email: regex }];
+  }
+
+  const memberships = getUsersConferences(userId, filter);
+
+  return memberships;
+};
+
 module.exports = {
   listUsers,
+  getAllUsersConferences
 };
