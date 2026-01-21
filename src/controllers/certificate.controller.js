@@ -42,10 +42,10 @@ const downloadCertificate = async (req, res) => {
       return res.status(404).json({ message: "Conference not found." });
     }
 
-    const now = new Date();
-    if (conf.endDate && new Date(conf.endDate) > now) {
-      return res.status(400).json({ message: "Certificate available after conference ends." });
-    }
+    // const now = new Date();
+    // if (conf.endDate && new Date(conf.endDate) > now) {
+    //   return res.status(400).json({ message: "Certificate available after conference ends." });
+    // }
 
     const template = await certificateTemplateModel
       .findOne({
