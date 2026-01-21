@@ -14,6 +14,7 @@ const adminAIRoutes = require('./adminAI.routes');
 const paymentRoutes = require('./payment.routes');
 const userRoutes = require('./users.routes');
 const certificateTemplateRoutes = require('./certificateTemplate.routes');
+const certificateRoutes = require("./certificate.routes")
 const userCreationRoutes = require('./userCreation.routes');
 const authenticate = require('../middleware/auth');
 const tenantResolver = require('../middleware/tenantResolver');
@@ -30,6 +31,7 @@ router.use('/conference', conferenceAccessRoutes); // Public conference access l
 router.use(authenticate());
 router.use(tenantResolver);
 
+router.use("/certificates", certificateRoutes);
 router.use('/orgs', orgRoutes);
 router.use('/conferences', conferenceRoutes);
 router.use('/conferences', conferenceMemberRoutes); // Conference member management

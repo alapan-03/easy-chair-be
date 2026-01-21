@@ -13,16 +13,16 @@ const logger = require('./config/logger');
 const app = express();
 app.use('/api/swagger/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use(requestId);
-app.use(helmet());
+// app.use(requestId);
+// app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
-  logger.info({ reqId: req.id, method: req.method, url: req.originalUrl }, 'Incoming request');
-  next();
-});
+// app.use((req, res, next) => {
+//   logger.info({ reqId: req.id, method: req.method, url: req.originalUrl }, 'Incoming request');
+//   next();
+// });
 
 app.use(routes);
 
