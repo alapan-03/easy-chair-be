@@ -106,7 +106,7 @@ router.get(
  */
 router.post(
   "/:id/decision",
-  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN]),
+  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN, Roles.REVIEWER]),
   validate(adminDecisionSchema),
   adminSubmissionController.setDecision
 );
@@ -162,7 +162,7 @@ router.post(
  */
 router.post(
   "/:id/files/final",
-  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN]),
+  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN, Roles.REVIEWER]),
   validate(adminFinalUploadSchema),
   adminSubmissionController.uploadFinalFile
 );

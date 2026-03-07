@@ -43,9 +43,9 @@ const {
  */
 router.post(
   "/submissions/:id/ai/run",
-  requireRole(["ADMIN", "SUPER_ADMIN"]),
+  requireRole(["ADMIN", "SUPER_ADMIN", "REVIEWER"]),
   validate(triggerAIAnalysisSchema),
-  aiController.triggerAnalysis
+  aiController.triggerAnalysis,
 );
 
 /**
@@ -78,8 +78,8 @@ router.post(
  */
 router.get(
   "/submissions/:id/ai",
-  requireRole(["ADMIN", "SUPER_ADMIN"]),
-  aiController.getReport
+  requireRole(["ADMIN", "SUPER_ADMIN", "REVIEWER"]),
+  aiController.getReport,
 );
 
 /**
@@ -128,9 +128,9 @@ router.get(
  */
 router.get(
   "/ai/reports",
-  requireRole(["ADMIN", "SUPER_ADMIN"]),
+  requireRole(["ADMIN", "SUPER_ADMIN", "REVIEWER"]),
   validate({ query: listAIReportsQuerySchema }),
-  aiController.listReports
+  aiController.listReports,
 );
 
 /**
@@ -165,8 +165,8 @@ router.get(
  */
 router.get(
   "/ai/queue-stats",
-  requireRole(["ADMIN", "SUPER_ADMIN"]),
-  aiController.getQueueStats
+  requireRole(["ADMIN", "SUPER_ADMIN", "REVIEWER"]),
+  aiController.getQueueStats,
 );
 
 module.exports = router;

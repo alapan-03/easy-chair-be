@@ -251,7 +251,7 @@ router.get(
  */
 router.get(
   "/:id",
-  requireRole([Roles.AUTHOR, Roles.ADMIN, Roles.SUPER_ADMIN]),
+  requireRole([Roles.AUTHOR, Roles.ADMIN, Roles.SUPER_ADMIN, Roles.REVIEWER]),
   validate(idOnlySchema),
   submissionController.getSubmissionDetails
 );
