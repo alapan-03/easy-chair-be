@@ -3,7 +3,8 @@ const Roles = {
   ADMIN: 'ADMIN',
   MANAGER: 'MANAGER',
   SUB_MANAGER: 'SUB_MANAGER',
-  AUTHOR: 'AUTHOR', // Conference-level only, authors sign up via conference link
+  AUTHOR: 'AUTHOR', // Conference-level only, authors sign up via conference link,
+  REVIEWER: 'REVIEWER'
 };
 
 // Role hierarchy for permission checking (higher index = more permissions)
@@ -19,7 +20,7 @@ const RoleHierarchy = {
 const OrgLevelRoles = [Roles.ADMIN, Roles.MANAGER];
 
 // Roles that can be assigned at conference level
-const ConferenceLevelRoles = [Roles.MANAGER, Roles.SUB_MANAGER, Roles.AUTHOR];
+const ConferenceLevelRoles = [Roles.MANAGER, Roles.SUB_MANAGER, Roles.AUTHOR, Roles.REVIEWER];
 
 // Roles that can be assigned at track level
 const TrackLevelRoles = [Roles.SUB_MANAGER];

@@ -7,7 +7,7 @@ const conferenceMemberSchema = new Schema(
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         role: {
             type: String,
-            enum: ['MANAGER', 'SUB_MANAGER', 'AUTHOR'],
+            enum: ['MANAGER', 'SUB_MANAGER', 'AUTHOR', 'REVIEWER'],
             required: true
         },
         // For SUB_MANAGER: can manage entire conference or specific tracks
