@@ -56,7 +56,7 @@ const router = Router();
 
 router.get(
   "/",
-  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN, Roles.MANAGER]),
+  requireRole([Roles.ADMIN, Roles.SUPER_ADMIN, Roles.MANAGER, Roles.REVIEWER]),
   validate(listAdminSubmissionsSchema),
   adminSubmissionController.listSubmissions
 );
