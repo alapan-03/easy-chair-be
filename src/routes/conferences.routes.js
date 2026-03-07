@@ -79,7 +79,6 @@ router.post(
  */
 router.get(
   "/",
-  requireRole([Roles.ADMIN, Roles.MANAGER, Roles.SUB_MANAGER, Roles.AUTHOR, Roles.SUPER_ADMIN]),
   conferenceController.listConferences
 );
 
