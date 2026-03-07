@@ -158,4 +158,38 @@ router.post(
     }
 );
 
+router.post(
+    '/create-reviewer',
+    authenticate(),
+    tenantResolver,
+    requireRole([Roles.SUPER_ADMIN, Roles.ADMIN, Roles.MANAGER]),
+    async (req, res, next) => {
+        try {
+            const { email, password, name, conferenceId } = req.body;
+            const { orgId } = req.tenant;
+
+            if (!email || !password || !name) {
+                throw new ApiError(400, 'VALIDATION_ERROR', 'email, password, and name are required');
+            }
+
+            if (!conferenceId) {
+                throw new ApiError(400, 'VALIDATION_ERROR', 'conferenceId or trackId is required');
+            }
+
+            const result = await userCreationService.createUserWithRole(
+                req.user,
+                { email, password, name },
+                { role: Roles.REVIEWER, orgId, conferenceId, trackId, managesFullConference }
+            );
+
+            res.status(201).json({
+                message: 'Reviewer user created successfully',
+                ...result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
 module.exports = router;
