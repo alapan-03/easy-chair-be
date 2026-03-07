@@ -179,7 +179,7 @@ router.post(
             const result = await userCreationService.createUserWithRole(
                 req.user,
                 { email, password, name },
-                { role: Roles.REVIEWER, orgId, conferenceId, trackId, managesFullConference }
+                { role: Roles.REVIEWER, orgId, conferenceId }
             );
 
             res.status(201).json({
