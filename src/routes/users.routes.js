@@ -17,5 +17,6 @@ const router = Router();
 router.get('/', validate(listUsersSchema), userController.listUsers);
 
 router.get('/conferences', userController.getAllUsersConferences)
+router.get('/dashboard', userController.dashboardData)
 
 module.exports = router;
