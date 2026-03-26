@@ -4,8 +4,6 @@ services:
   api:
     build: .
     container_name: node_api
-    ports:
-      - "5000:5000"
     env_file:
       - .env
     depends_on:
