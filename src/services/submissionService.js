@@ -1,33 +1,55 @@
-const { ApiError } = require('../utils/errors');
-const { SubmissionStatuses, SubmissionTimelineTypes } = require('../constants/submissionStatuses');
-const submissionRepository = require('../repositories/submissionRepository');
-const conferenceRepository = require('../repositories/conferenceRepository');
-const trackRepository = require('../repositories/trackRepository');
-const submissionFileRepository = require('../repositories/submissionFileRepository');
-const submissionTimelineRepository = require('../repositories/submissionTimelineRepository');
-const paymentIntentRepository = require('../repositories/paymentIntentRepository');
-const storageProvider = require('./storageProvider');
-const conferenceSettingsService = require('./conferenceSettingsService');
-const paymentService = require('./paymentService');
+const { ApiError } = require("../utils/errors");
+const {
+  SubmissionStatuses,
+  SubmissionTimelineTypes,
+} = require("../constants/submissionStatuses");
+const submissionRepository = require("../repositories/submissionRepository");
+const conferenceRepository = require("../repositories/conferenceRepository");
+const trackRepository = require("../repositories/trackRepository");
+const submissionFileRepository = require("../repositories/submissionFileRepository");
+const submissionTimelineRepository = require("../repositories/submissionTimelineRepository");
+const paymentIntentRepository = require("../repositories/paymentIntentRepository");
+const storageProvider = require("./storageProvider");
+const conferenceSettingsService = require("./conferenceSettingsService");
+const paymentService = require("./paymentService");
 
 const assertAuthor = (submission, userId) => {
   if (String(submission.createdByUserId) !== String(userId)) {
-    throw new ApiError(403, 'FORBIDDEN', 'You do not own this submission');
+    throw new ApiError(403, "FORBIDDEN", "You do not own this submission");
   }
 };
 
-const createTimeline = async (orgId, submissionId, type, actorUserId, payload = {}) =>
-  submissionTimelineRepository.create(orgId, { submissionId, type, actorUserId, payload });
+const createTimeline = async (
+  orgId,
+  submissionId,
+  type,
+  actorUserId,
+  payload = {},
+) =>
+  submissionTimelineRepository.create(orgId, {
+    submissionId,
+    type,
+    actorUserId,
+    payload,
+  });
 
 const ensureConferenceAndTrack = async (orgId, conferenceId, trackId) => {
   const conference = await conferenceRepository.findById(conferenceId);
   if (!conference || String(conference.orgId) !== String(orgId)) {
-    throw new ApiError(404, 'CONFERENCE_NOT_FOUND', 'Conference not found for this org');
+    throw new ApiError(
+      404,
+      "CONFERENCE_NOT_FOUND",
+      "Conference not found for this org",
+    );
   }
 
   const track = await trackRepository.findById(trackId);
   if (!track || String(track.conferenceId) !== String(conferenceId)) {
-    throw new ApiError(404, 'TRACK_NOT_FOUND', 'Track not found for this conference');
+    throw new ApiError(
+      404,
+      "TRACK_NOT_FOUND",
+      "Track not found for this conference",
+    );
   }
 };
 
@@ -42,10 +64,16 @@ const createDraft = async (orgId, userId, payload) => {
     status: SubmissionStatuses.DRAFT,
   });
 
-  await createTimeline(orgId, submission._id, SubmissionTimelineTypes.CREATED, userId, {
-    conferenceId: payload.conferenceId,
-    trackId: payload.trackId,
-  });
+  await createTimeline(
+    orgId,
+    submission._id,
+    SubmissionTimelineTypes.CREATED,
+    userId,
+    {
+      conferenceId: payload.conferenceId,
+      trackId: payload.trackId,
+    },
+  );
 
   return submission;
 };
@@ -53,25 +81,31 @@ const createDraft = async (orgId, userId, payload) => {
 const updateDraft = async (orgId, submissionId, userId, metadata) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
   assertAuthor(submission, userId);
 
   if (submission.status !== SubmissionStatuses.DRAFT) {
-    throw new ApiError(400, 'INVALID_STATUS', 'Submission is not editable');
+    throw new ApiError(400, "INVALID_STATUS", "Submission is not editable");
   }
 
   const updated = await submissionRepository.updateOne(
     orgId,
     { _id: submissionId },
     { $set: { metadata } },
-    { new: true }
+    { new: true },
   );
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.STATUS_CHANGED, userId, {
-    status: updated.status,
-    changed: 'metadata',
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.STATUS_CHANGED,
+    userId,
+    {
+      status: updated.status,
+      changed: "metadata",
+    },
+  );
 
   return updated;
 };
@@ -79,36 +113,62 @@ const updateDraft = async (orgId, submissionId, userId, metadata) => {
 const validateFileRules = (settings, file) => {
   const { maxFileSizeMb, allowedTypes } = settings.submissionRules || {};
   if (maxFileSizeMb && file.sizeBytes > maxFileSizeMb * 1024 * 1024) {
-    throw new ApiError(400, 'FILE_TOO_LARGE', `File exceeds max size of ${maxFileSizeMb} MB`);
+    throw new ApiError(
+      400,
+      "FILE_TOO_LARGE",
+      `File exceeds max size of ${maxFileSizeMb} MB`,
+    );
   }
-  if (allowedTypes && allowedTypes.length && !allowedTypes.includes(file.mimeType)) {
-    throw new ApiError(400, 'FILE_TYPE_NOT_ALLOWED', 'File type is not allowed');
+  if (
+    allowedTypes &&
+    allowedTypes.length &&
+    !allowedTypes.includes(file.mimeType)
+  ) {
+    throw new ApiError(
+      400,
+      "FILE_TYPE_NOT_ALLOWED",
+      "File type is not allowed",
+    );
   }
 };
 
 const uploadFile = async (orgId, submissionId, userId, filePayload) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
   assertAuthor(submission, userId);
 
-  if (![SubmissionStatuses.DRAFT, SubmissionStatuses.PAYMENT_PENDING].includes(submission.status)) {
-    throw new ApiError(400, 'INVALID_STATUS', 'Cannot upload file for this submission status');
+  if (
+    ![SubmissionStatuses.DRAFT, SubmissionStatuses.PAYMENT_PENDING].includes(
+      submission.status,
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_STATUS",
+      "Cannot upload file for this submission status",
+    );
   }
 
-  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(
+    orgId,
+    submission.conferenceId,
+  );
   validateFileRules(settings, filePayload);
 
   // File is already saved by multer middleware, construct the storage key from the path
   // The storagePath is the full path, we need to convert it to a relative storage key
-  const path = require('path');
-  const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'uploads');
-  const storageKey = path.relative(STORAGE_DIR, filePayload.storagePath).replace(/\\/g, '/');
+  const path = require("path");
+  const STORAGE_DIR =
+    process.env.STORAGE_DIR || path.join(process.cwd(), "uploads");
+  const storageKey = path
+    .relative(STORAGE_DIR, filePayload.storagePath)
+    .replace(/\\/g, "/");
 
   const fileRecord = await submissionFileRepository.create(orgId, {
     submissionId,
-    version: 'v1',
+    version: "v1",
     storageKey,
     originalName: filePayload.originalName,
     mimeType: filePayload.mimeType,
@@ -117,18 +177,24 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
     uploadedByUserId: userId,
   });
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.FILE_UPLOADED, userId, {
-    version: 'v1',
-    storageKey,
-    originalName: filePayload.originalName,
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.FILE_UPLOADED,
+    userId,
+    {
+      version: "v1",
+      storageKey,
+      originalName: filePayload.originalName,
+    },
+  );
 
   // Auto-trigger AI analysis if enabled
   try {
-    const aiService = require('./aiService');
+    const aiService = require("./aiService");
     const aiConfig = settings.ai || {};
 
-    if (aiConfig.enabled && ['both', 'auto_only'].includes(aiConfig.runMode)) {
+    if (aiConfig.enabled && ["both", "auto_only"].includes(aiConfig.runMode)) {
       // Check if consent is required
       const consentRequired = aiConfig.consentRequired !== false;
 
@@ -140,8 +206,8 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
             submission.conferenceId,
             submissionId,
             fileRecord._id,
-            'AUTO',
-            null
+            "AUTO",
+            null,
           );
         }
       } else {
@@ -151,15 +217,18 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
           submission.conferenceId,
           submissionId,
           fileRecord._id,
-          'AUTO',
-          null
+          "AUTO",
+          null,
         );
       }
     }
   } catch (aiError) {
     // Log but don't fail the file upload
-    const logger = require('../config/logger');
-    logger.error({ error: aiError.message, submissionId }, 'Failed to auto-trigger AI analysis');
+    const logger = require("../config/logger");
+    logger.error(
+      { error: aiError.message, submissionId },
+      "Failed to auto-trigger AI analysis",
+    );
   }
 
   return fileRecord;
@@ -168,79 +237,140 @@ const uploadFile = async (orgId, submissionId, userId, filePayload) => {
 const createPaymentIntent = async (orgId, submissionId, userId) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
   assertAuthor(submission, userId);
 
-  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(
+    orgId,
+    submission.conferenceId,
+  );
 
-  const intent = await paymentService.createPaymentIntent(orgId, submission, settings, userId);
+  const intent = await paymentService.createPaymentIntent(
+    orgId,
+    submission,
+    settings,
+    userId,
+  );
 
   await submissionRepository.updateOne(
     orgId,
     { _id: submissionId },
     { $set: { status: SubmissionStatuses.PAYMENT_PENDING } },
-    { new: true }
+    { new: true },
   );
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.STATUS_CHANGED, userId, {
-    status: SubmissionStatuses.PAYMENT_PENDING,
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.STATUS_CHANGED,
+    userId,
+    {
+      status: SubmissionStatuses.PAYMENT_PENDING,
+    },
+  );
 
   return intent;
 };
 
-const ensurePaymentPaidIfRequired = async (orgId, submissionId, requiredBeforeSubmit) => {
+const ensurePaymentPaidIfRequired = async (
+  orgId,
+  submissionId,
+  requiredBeforeSubmit,
+) => {
   if (!requiredBeforeSubmit) {
     return;
   }
-  const intents = await paymentIntentRepository.findBySubmission(orgId, submissionId);
+  const intents = await paymentIntentRepository.findBySubmission(
+    orgId,
+    submissionId,
+  );
   const latest = intents?.[0];
-  if (!latest || latest.status !== 'PAID') {
-    throw new ApiError(400, 'PAYMENT_REQUIRED', 'Payment must be completed before submission');
+  if (!latest || latest.status !== "PAID") {
+    throw new ApiError(
+      400,
+      "PAYMENT_REQUIRED",
+      "Payment must be completed before submission",
+    );
   }
 };
 
 const submit = async (orgId, submissionId, userId) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
   assertAuthor(submission, userId);
 
-  if (![SubmissionStatuses.DRAFT, SubmissionStatuses.PAYMENT_PENDING].includes(submission.status)) {
-    throw new ApiError(400, 'INVALID_STATUS', 'Submission cannot be submitted in its current state');
+  if (
+    ![SubmissionStatuses.DRAFT, SubmissionStatuses.PAYMENT_PENDING].includes(
+      submission.status,
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_STATUS",
+      "Submission cannot be submitted in its current state",
+    );
   }
 
-  const { settings } = await conferenceSettingsService.getOrCreateSettings(orgId, submission.conferenceId);
-  await ensurePaymentPaidIfRequired(orgId, submissionId, settings.payments.requiredBeforeSubmit);
+  const { settings } = await conferenceSettingsService.getOrCreateSettings(
+    orgId,
+    submission.conferenceId,
+  );
+  await ensurePaymentPaidIfRequired(
+    orgId,
+    submissionId,
+    settings.payments.requiredBeforeSubmit,
+  );
 
   const updated = await submissionRepository.updateOne(
     orgId,
     { _id: submissionId },
     { $set: { status: SubmissionStatuses.SUBMITTED } },
-    { new: true }
+    { new: true },
   );
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.SUBMITTED, userId, {
-    status: SubmissionStatuses.SUBMITTED,
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.SUBMITTED,
+    userId,
+    {
+      status: SubmissionStatuses.SUBMITTED,
+    },
+  );
 
   return updated;
 };
 
 const listMySubmissions = async (orgId, userId) =>
-  submissionRepository.find(orgId, { createdByUserId: userId });
+  submissionRepository.find(
+    orgId,
+    { createdByUserId: userId },
+    {
+      populate: {
+        path: "conferenceId",
+        select: "name", // only fetch conference name
+      },
+    },
+  );
 
 const getSubmissionWithTimeline = async (orgId, submissionId, userId) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
   assertAuthor(submission, userId);
 
-  const timeline = await submissionTimelineRepository.listBySubmission(orgId, submissionId);
-  const files = await submissionFileRepository.findBySubmission(orgId, submissionId);
+  const timeline = await submissionTimelineRepository.listBySubmission(
+    orgId,
+    submissionId,
+  );
+  const files = await submissionFileRepository.findBySubmission(
+    orgId,
+    submissionId,
+  );
 
   return { submission, timeline, files };
 };
@@ -256,7 +386,7 @@ const adminListSubmissions = async (orgId, filters = {}) => {
 const adminSetDecision = async (orgId, submissionId, adminUserId, payload) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
 
   const updated = await submissionRepository.updateOne(
@@ -273,26 +403,44 @@ const adminSetDecision = async (orgId, submissionId, adminUserId, payload) => {
         status: SubmissionStatuses.DECISION_MADE,
       },
     },
-    { new: true }
+    { new: true },
   );
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.DECISION_SET, adminUserId, {
-    status: payload.status,
-    notes: payload.notes,
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.DECISION_SET,
+    adminUserId,
+    {
+      status: payload.status,
+      notes: payload.notes,
+    },
+  );
 
   return updated;
 };
 
-const adminUploadFinalFile = async (orgId, submissionId, adminUserId, filePayload) => {
+const adminUploadFinalFile = async (
+  orgId,
+  submissionId,
+  adminUserId,
+  filePayload,
+) => {
   const submission = await submissionRepository.findById(orgId, submissionId);
   if (!submission) {
-    throw new ApiError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
+    throw new ApiError(404, "SUBMISSION_NOT_FOUND", "Submission not found");
   }
 
-  const settings = await conferenceSettingsService.getSettingsOrThrow(orgId, submission.conferenceId);
+  const settings = await conferenceSettingsService.getSettingsOrThrow(
+    orgId,
+    submission.conferenceId,
+  );
   if (!settings.submissionRules.allowAdminUploadFinal) {
-    throw new ApiError(403, 'FINAL_UPLOAD_NOT_ALLOWED', 'Admin final upload is disabled');
+    throw new ApiError(
+      403,
+      "FINAL_UPLOAD_NOT_ALLOWED",
+      "Admin final upload is disabled",
+    );
   }
 
   validateFileRules(settings, filePayload);
@@ -305,7 +453,7 @@ const adminUploadFinalFile = async (orgId, submissionId, adminUserId, filePayloa
 
   const fileRecord = await submissionFileRepository.create(orgId, {
     submissionId,
-    version: 'final',
+    version: "final",
     storageKey,
     originalName: filePayload.originalName,
     mimeType: filePayload.mimeType,
@@ -314,11 +462,17 @@ const adminUploadFinalFile = async (orgId, submissionId, adminUserId, filePayloa
     uploadedByUserId: adminUserId,
   });
 
-  await createTimeline(orgId, submissionId, SubmissionTimelineTypes.FILE_UPLOADED, adminUserId, {
-    version: 'final',
-    storageKey,
-    originalName: filePayload.originalName,
-  });
+  await createTimeline(
+    orgId,
+    submissionId,
+    SubmissionTimelineTypes.FILE_UPLOADED,
+    adminUserId,
+    {
+      version: "final",
+      storageKey,
+      originalName: filePayload.originalName,
+    },
+  );
 
   return fileRecord;
 };
