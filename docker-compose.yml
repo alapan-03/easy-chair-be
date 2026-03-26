@@ -1,16 +1,40 @@
 version: "3.9"
 
 services:
-  mongo:
-    image: mongo:7
-    container_name: easychair-mongo
-    restart: unless-stopped
+  api:
+    build: .
+    container_name: node_api
     ports:
-      - "27018:27017"
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - mongo_db
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: node_worker
+    command: node src/workers/aiWorker.js
+    env_file:
+      - .env
+    depends_on:
+      - mongo_db
+      - redis
+    restart: unless-stopped
+
+  mongo_db:
+    image: mongo:7
+    container_name: mongo_db
+    ports:
+      - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: easychair
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     volumes:
-      - mongo-data:/data/db
+      - mongo_data:/data/db
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -23,5 +47,5 @@ services:
     command: redis-server --appendonly yes
 
 volumes:
-  mongo-data:
+  mongo_data:
   redis-data:
