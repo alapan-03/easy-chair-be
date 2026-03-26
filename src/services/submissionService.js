@@ -349,10 +349,16 @@ const listMySubmissions = async (orgId, userId) =>
     orgId,
     { createdByUserId: userId },
     {
-      populate: {
-        path: "conferenceId",
-        select: "name", // only fetch conference name
-      },
+      populate: [
+        {
+          path: "conferenceId",
+          select: "name",
+        },
+        {
+          path: "trackId",
+          select: "name",
+        },
+      ],
     },
   );
 
